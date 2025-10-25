@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: virtual-presenter-backend
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+  redis:
+    host: localhost
+    port: 6379
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: [ "health", "info", "metrics" ]

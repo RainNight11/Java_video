@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class VirtualPresenterViewModel(
     application: Application,
@@ -57,6 +58,10 @@ class VirtualPresenterViewModel(
         _uiState.update { it.copy(avatarImageUrl = url) }
     }
 
+    fun clearError() {
+        _uiState.update { it.copy(submitError = null, uploadError = null) }
+    }
+
     fun uploadVoiceFromUri(uri: Uri) {
         viewModelScope.launch {
             _uiState.update { it.copy(isUploadingVoice = true, uploadError = null) }
@@ -79,6 +84,42 @@ class VirtualPresenterViewModel(
                         isUploadingVoice = false,
                         uploadError = "语音上传失败，请稍后重试。"
                     )
+                }
+            }
+        }
+    }
+
+    fun uploadVoiceFromFile(file: File, mimeType: String = DEFAULT_AUDIO_MIME) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUploadingVoice = true, uploadError = null) }
+            try {
+                val bytes = withContext(Dispatchers.IO) { file.readBytes() }
+                val payload = VoiceUploadPayload(
+                    bytes = bytes,
+                    fileName = file.name,
+                    mimeType = mimeType,
+                    label = _uiState.value.voiceLabel.takeIf { it.isNotBlank() }
+                )
+                val voice = uploadVoiceUseCase(payload)
+                _uiState.update {
+                    it.copy(
+                        isUploadingVoice = false,
+                        voiceId = voice.voiceId,
+                        uploadError = null
+                    )
+                }
+            } catch (exception: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isUploadingVoice = false,
+                        uploadError = "语音上传失败，请稍后重试。"
+                    )
+                }
+            } finally {
+                withContext(Dispatchers.IO) {
+                    if (file.exists()) {
+                        file.delete()
+                    }
                 }
             }
         }

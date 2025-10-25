@@ -82,8 +82,8 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun Java_videoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Keep brand colors consistent unless explicitly overridden.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
