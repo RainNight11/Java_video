@@ -17,6 +17,9 @@ import com.example.java_video.domain.model.VoiceUploadPayload
 import com.example.java_video.domain.usecase.GetJobStatusUseCase
 import com.example.java_video.domain.usecase.SubmitStoryUseCase
 import com.example.java_video.domain.usecase.UploadVoiceUseCase
+import com.example.java_video.domain.usecase.GenerateVoiceUseCase
+import com.example.java_video.domain.usecase.TTSGenerationState
+import com.example.java_video.domain.model.TTSRequest
 import com.example.java_video.ui.state.VirtualPresenterUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -32,7 +35,8 @@ class VirtualPresenterViewModel(
     application: Application,
     private val uploadVoiceUseCase: UploadVoiceUseCase,
     private val submitStoryUseCase: SubmitStoryUseCase,
-    private val getJobStatusUseCase: GetJobStatusUseCase
+    private val getJobStatusUseCase: GetJobStatusUseCase,
+    private val generateVoiceUseCase: GenerateVoiceUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VirtualPresenterUiState())
@@ -228,6 +232,92 @@ class VirtualPresenterViewModel(
         }
     }
 
+    // TTS相关方法
+    fun generateVoiceFromText(
+        text: String,
+        customAudioPath: String? = null,
+        voiceId: String? = null,
+        emotion: com.example.java_video.domain.model.Emotion = com.example.java_video.domain.model.Emotion.NEUTRAL,
+        speed: Float = 1.0f,
+        pitch: Float = 1.0f
+    ) {
+        if (text.isBlank()) {
+            _uiState.update { it.copy(submitError = "请输入要转换的文本内容。") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { 
+                it.copy(
+                    isGeneratingVoice = true,
+                    voiceGenerationError = null,
+                    voiceGenerationState = TTSGenerationState.Loading
+                )
+            }
+
+            try {
+                val request = TTSRequest(
+                    text = text,
+                    voiceId = voiceId,
+                    customAudioPath = customAudioPath,
+                    emotion = emotion,
+                    speed = speed,
+                    pitch = pitch
+                )
+
+                generateVoiceUseCase(request).collect { state ->
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            voiceGenerationState = state,
+                            isGeneratingVoice = state is TTSGenerationState.Loading || state is TTSGenerationState.Processing,
+                            voiceGenerationError = if (state is TTSGenerationState.Error) state.message else null,
+                            generatedVoiceUrl = if (state is TTSGenerationState.Success) state.audioUrl else currentState.generatedVoiceUrl
+                        )
+                    }
+                }
+            } catch (exception: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isGeneratingVoice = false,
+                        voiceGenerationError = "语音生成失败: ${exception.message}",
+                        voiceGenerationState = TTSGenerationState.Error(exception.message ?: "未知错误")
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearVoiceGenerationError() {
+        _uiState.update { it.copy(voiceGenerationError = null) }
+    }
+
+    fun resetVoiceGeneration() {
+        _uiState.update { 
+            it.copy(
+                isGeneratingVoice = false,
+                voiceGenerationError = null,
+                voiceGenerationState = null,
+                generatedVoiceUrl = null
+            )
+        }
+    }
+
+    fun onEmotionSelected(emotion: com.example.java_video.domain.model.Emotion) {
+        _uiState.update { it.copy(selectedEmotion = emotion) }
+    }
+
+    fun onVoiceSpeedChanged(speed: Float) {
+        _uiState.update { it.copy(voiceSpeed = speed.coerceIn(0.5f, 2.0f)) }
+    }
+
+    fun onVoicePitchChanged(pitch: Float) {
+        _uiState.update { it.copy(voicePitch = pitch.coerceIn(0.5f, 2.0f)) }
+    }
+
+    fun onUseCustomVoiceChanged(useCustom: Boolean) {
+        _uiState.update { it.copy(useCustomVoice = useCustom) }
+    }
+
     companion object {
         private const val POLL_INTERVAL_MS = 1_500L
         private const val DEFAULT_AUDIO_MIME = "audio/wav"
@@ -246,7 +336,8 @@ class VirtualPresenterViewModel(
                         application = app,
                         uploadVoiceUseCase = container.uploadVoiceUseCase,
                         submitStoryUseCase = container.submitStoryUseCase,
-                        getJobStatusUseCase = container.getJobStatusUseCase
+                        getJobStatusUseCase = container.getJobStatusUseCase,
+                        generateVoiceUseCase = container.generateVoiceUseCase
                     ) as T
                 }
             }

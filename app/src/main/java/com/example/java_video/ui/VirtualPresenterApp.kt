@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.java_video.ui.navigation.Screen
 import com.example.java_video.ui.screens.CreateScreen
 import com.example.java_video.ui.screens.DashboardScreen
+import com.example.java_video.ui.screens.SettingsScreen
 import com.example.java_video.ui.screens.VoiceScreen
 import com.example.java_video.viewmodel.VirtualPresenterViewModel
 
@@ -45,8 +46,9 @@ fun VirtualPresenterApp(presenterViewModel: VirtualPresenterViewModel) {
 
     val items = listOf(
         Screen.Dashboard,
+        Screen.Voice,
         Screen.Create,
-        Screen.Voice
+        Screen.Settings
     )
 
     Box(
@@ -137,8 +139,9 @@ fun VirtualPresenterApp(presenterViewModel: VirtualPresenterViewModel) {
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Screen.Dashboard.route) { DashboardScreen(presenterViewModel) }
+                composable(Screen.Voice.route) { VoiceScreen() }
                 composable(Screen.Create.route) { CreateScreen(presenterViewModel) }
-                composable(Screen.Voice.route) { VoiceScreen(presenterViewModel) }
+                composable(Screen.Settings.route) { SettingsScreen() }
             }
         }
     }

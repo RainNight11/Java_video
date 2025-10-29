@@ -1,249 +1,331 @@
 package com.example.java_video.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.java_video.domain.model.GenerationMode
-import com.example.java_video.ui.components.ErrorCard
-import com.example.java_video.ui.components.InstructionCard
+import androidx.compose.ui.unit.sp
+import com.example.java_video.ui.screens.create.AIAnchorScreen
+import com.example.java_video.ui.screens.create.VoiceGenerationScreen
+import com.example.java_video.ui.screens.create.VideoGenerationScreen
 import com.example.java_video.viewmodel.VirtualPresenterViewModel
 
+/**
+ * 全新创作的作页面 - 三个主要功能卡片
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateScreen(viewModel: VirtualPresenterViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
+    var selectedFunction by remember { mutableStateOf<FunctionType?>(null) }
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                        MaterialTheme.colorScheme.background
+                    )
+                )
+            )
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        HeroCard()
+        // 页面标题区域
+        CreateScreenHeader()
 
-        OutlinedTextField(
-            value = uiState.title,
-            onValueChange = { viewModel.onTitleChange(it) },
-            label = { Text("标题（可选）") },
-            placeholder = { Text("取一个有爆发力的标题") },
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth(),
-            colors = brandedTextFieldColors()
-        )
-
-        OutlinedTextField(
-            value = uiState.script,
-            onValueChange = { viewModel.onScriptChange(it) },
-            label = { Text("故事脚本") },
-            placeholder = { Text("写下主持词、故事或产品卖点，保持节奏感。") },
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp),
-            colors = brandedTextFieldColors(),
-            isError = uiState.submitError?.contains("script") == true
-        )
-
-        Text(
-            text = "创作模式",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        ModeSelector(
-            selectedMode = uiState.mode,
-            onModeSelected = viewModel::onModeSelected
-        )
-
-        if (uiState.isSubmitting) {
-            Button(
-                onClick = {},
-                enabled = false,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text("正在生成中…")
-            }
+        // 主要功能卡片区域
+        if (selectedFunction == null) {
+            // 显示三个主要功能卡片
+            MainFunctionCards(
+                onFunctionSelected = { functionType ->
+                    selectedFunction = functionType
+                }
+            )
         } else {
-            Button(
-                onClick = { viewModel.submitStory() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = uiState.voiceId != null && uiState.script.isNotBlank(),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PlayCircle,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-                Text("生成视频")
-            }
-        }
-
-        uiState.submitError?.let {
-            ErrorCard(
-                error = it,
-                onDismiss = { viewModel.clearError() }
+            // 显示选中的功能页面
+            SelectedFunctionScreen(
+                functionType = selectedFunction!!,
+                viewModel = viewModel,
+                onBack = { selectedFunction = null }
             )
         }
-
-        if (uiState.voiceId == null) {
-            Text(
-                text = "温馨提示：请先到「声音」页上传音色样本，才能激活生成按钮。",
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        InstructionCard(
-            title = "写好脚本的小贴士",
-            description = "控制在 90-120 秒之间，搭配富有动感的动作，更容易产出精彩内容。",
-            steps = listOf(
-                "开场用一句号召语抓住注意力。",
-                "中段拆解关键信息或产品亮点，保持句式有力量感。",
-                "结尾用行动号召呼应品牌态度。"
-            )
-        )
     }
 }
 
+/**
+ * 创作页面头部标题
+ */
 @Composable
-private fun brandedTextFieldColors() = TextFieldDefaults.colors(
-    focusedIndicatorColor = MaterialTheme.colorScheme.secondary,
-    unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-    cursorColor = MaterialTheme.colorScheme.secondary,
-    focusedLabelColor = MaterialTheme.colorScheme.secondary,
-)
-
-@Composable
-private fun HeroCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondary,
-            contentColor = MaterialTheme.colorScheme.onSecondary
-        )
+private fun CreateScreenHeader() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
+        Text(
+            text = "✨ 创作中心",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center
+        )
+        
+        Text(
+            text = "选择您需要的创作工具，开始您的创意之旅",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        
+        // 分隔线
+        HorizontalDivider(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Bolt,
-                contentDescription = null,
-                modifier = Modifier.align(Alignment.Start)
-            )
-            Text(
-                text = "设计你的故事战术板",
-                style = MaterialTheme.typography.headlineMedium
-            )
-            Text(
-                text = "写下你的脚本，剩下的交给虚拟主理人。可自由命名、自由切换节奏，输出具有运动精神的内容。",
-                style = MaterialTheme.typography.bodyLarge
+                .padding(horizontal = 40.dp)
+                .padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
+    }
+}
+
+/**
+ * 主要功能卡片
+ */
+@Composable
+private fun MainFunctionCards(
+    onFunctionSelected: (FunctionType) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        FunctionType.values().forEach { functionType ->
+            FunctionCard(
+                functionType = functionType,
+                onClick = { onFunctionSelected(functionType) }
             )
         }
     }
 }
 
+/**
+ * 单个功能卡片
+ */
 @Composable
-private fun ModeSelector(
-    selectedMode: GenerationMode,
-    onModeSelected: (GenerationMode) -> Unit
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        ModeChip(
-            label = "灵感模式",
-            description = "更具创意表达",
-            selected = selectedMode == GenerationMode.CREATIVE,
-            onClick = { onModeSelected(GenerationMode.CREATIVE) }
-        )
-        ModeChip(
-            label = "播报模式",
-            description = "节奏稳定有条理",
-            selected = selectedMode == GenerationMode.BROADCAST,
-            onClick = { onModeSelected(GenerationMode.BROADCAST) }
-        )
-    }
-}
-
-@Composable
-private fun ModeChip(
-    label: String,
-    description: String,
-    selected: Boolean,
+private fun FunctionCard(
+    functionType: FunctionType,
     onClick: () -> Unit
 ) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = {
-            Column {
-                Text(text = label, style = MaterialTheme.typography.titleMedium)
+    var isHovered by remember { mutableStateOf(false) }
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .clickable { onClick() }
+            .animateContentSize()
+            .shadow(
+                elevation = if (isHovered) 12.dp else 6.dp,
+                shape = RoundedCornerShape(24.dp)
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = functionType.primaryColor.copy(alpha = 0.1f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // 左侧图标区域
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(functionType.primaryColor.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = functionType.icon,
+                    contentDescription = functionType.title,
+                    modifier = Modifier.size(40.dp),
+                    tint = functionType.primaryColor
+                )
+            }
+            
+            // 中间文字区域
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = functionType.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = functionType.primaryColor
+                )
+                
+                Text(
+                    text = functionType.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp
+                )
+                
+                // 功能特点标签
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    functionType.features.take(2).forEach { feature ->
+                        Surface(
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                            color = functionType.primaryColor.copy(alpha = 0.1f)
+                        ) {
+                            Text(
+                                text = feature,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = functionType.primaryColor,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // 右侧箭头
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = "进入",
+                modifier = Modifier.size(32.dp),
+                tint = functionType.primaryColor.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+/**
+ * 选中的功能页面
+ */
+@Composable
+private fun SelectedFunctionScreen(
+    functionType: FunctionType,
+    viewModel: VirtualPresenterViewModel,
+    onBack: () -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // 返回按钮和标题
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "返回",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = functionType.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = functionType.primaryColor
+                )
+                Text(
+                    text = functionType.subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        },
-        shape = RoundedCornerShape(20.dp),
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            selectedContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-            labelColor = MaterialTheme.colorScheme.onSurface,
-            selectedLabelColor = MaterialTheme.colorScheme.onSurface
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = selected,
-            borderColor = if (selected) MaterialTheme.colorScheme.secondary
-            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            selectedBorderColor = MaterialTheme.colorScheme.secondary
-        )
+        }
+        
+        // 显示对应的功能页面
+        when (functionType) {
+            FunctionType.AI_ANCHOR -> {
+                AIAnchorScreen(viewModel = viewModel)
+            }
+            FunctionType.VOICE_GENERATION -> {
+                VoiceGenerationScreen(viewModel = viewModel)
+            }
+            FunctionType.VIDEO_GENERATION -> {
+                VideoGenerationScreen(viewModel = viewModel)
+            }
+        }
+    }
+}
+
+/**
+ * 功能类型枚举
+ */
+enum class FunctionType(
+    val title: String,
+    val subtitle: String,
+    val description: String,
+    val icon: ImageVector,
+    val primaryColor: Color,
+    val features: List<String>
+) {
+    AI_ANCHOR(
+        title = "AI虚拟人播报",
+        subtitle = "专业主播级播报体验",
+        description = "利用AI技术生成专业的主播播报内容，适合新闻、资讯、产品介绍等场景",
+        icon = Icons.Default.Person,
+        primaryColor = Color(0xFF2196F3),
+        features = listOf("专业播报", "多种风格", "智能合成")
+    ),
+    
+    VOICE_GENERATION(
+        title = "语音生成",
+        subtitle = "文字转自然语音",
+        description = "将文本内容转换为自然流畅的语音，支持多种情感和音色选择",
+        icon = Icons.Default.RecordVoiceOver,
+        primaryColor = Color(0xFF4CAF50),
+        features = listOf("声音管理", "情感控制", "自定义音色")
+    ),
+    
+    VIDEO_GENERATION(
+        title = "视频生成",
+        subtitle = "完整视频内容创作",
+        description = "创建包含虚拟主播的完整视频作品，支持多种创作风格",
+        icon = Icons.Default.VideoFile,
+        primaryColor = Color(0xFF9C27B0),
+        features = listOf("虚拟主播", "视频合成", "多种模式")
     )
 }

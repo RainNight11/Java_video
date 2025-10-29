@@ -7,6 +7,9 @@ import com.example.java_video.data.repository.VirtualPresenterRepository
 import com.example.java_video.domain.usecase.GetJobStatusUseCase
 import com.example.java_video.domain.usecase.SubmitStoryUseCase
 import com.example.java_video.domain.usecase.UploadVoiceUseCase
+import com.example.java_video.domain.usecase.GenerateVoiceUseCase
+import com.example.java_video.data.remote.PlaceholderTTSService
+import com.example.java_video.data.api.TTSService
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
@@ -41,8 +44,12 @@ class AppContainer(context: Context) {
     private val api: VirtualPresenterApi = retrofit.create(VirtualPresenterApi::class.java)
 
     private val repository: VirtualPresenterRepository = DefaultVirtualPresenterRepository(api)
+    
+    // TTS相关依赖
+    private val ttsService: TTSService = PlaceholderTTSService()
 
     val uploadVoiceUseCase = UploadVoiceUseCase(repository)
     val submitStoryUseCase = SubmitStoryUseCase(repository)
     val getJobStatusUseCase = GetJobStatusUseCase(repository)
+    val generateVoiceUseCase = GenerateVoiceUseCase(ttsService)
 }
